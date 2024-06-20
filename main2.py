@@ -53,7 +53,7 @@ def intersection(listay, listb):
 	return list(set(listay) & set(listb))
 
 # chosen values are the 6 from real life
-def getStudentHitList(filename, chosenValues):
+def getStudentHitList(filename, chosenValues, checkIds=[]):
 	hits = {}
 	studenty = []
 	with open(filename) as f:
@@ -72,17 +72,19 @@ def getStudentHitList(filename, chosenValues):
 			counts[corrects - 1] += 1
 	returnValue = 24 * counts[2] + 170 * counts[3] + 5300 * counts[4] + 2_000_000 * counts[5]
 	netGain = returnValue - len(studenty) * 3
-	hits = {k: v for k, v in sorted(hits.items(), key=lambda item: item[1], reverse=True)}
-	pp.pprint(hits)
-	print(f"All six digits have been marked correctly {counts[5]} times")
-	print(f"Five of six six digits have been marked correctly {counts[4]} times")
-	print(f"Four of six digits have been marked correctly {counts[3]} times")
-	print(f"Three of six digits have been marked correctly {counts[2]} times")
-	print(f"Two of six digits have been marked correctly {counts[1]} times")
-	print(f"One of six digits have been marked correctly {counts[0]} times")
+	hitlist = list(hits.items())
+	hitlist.sort(key=lambda x: x[1], reverse=True)
+	for [i, v] in hitlist:
+		print(f"{i}: {v} trafień")
+	counts.reverse()
+	for id, val in enumerate(counts):
+		if val > 0:
+			print(f"{6-(id+1)} of 6 digits have been marked correctly {val} times")
 	print(f"Approximate winnings: {returnValue}")
 	print(f"Net gain: {netGain}")
-
+	for id in checkIds:
+		if id in [int(x[0]) for x in hitlist]:
+			print(f"{id} has guessed {hits[str(id)]} of 6 numbers correctly")
 
 # generate()
-getStudentHitList("lotek.csv", [10, 18, 23, 36, 42, 46])
+getStudentHitList("lotek.csv", [10, 18, 23, 36, 42, 46], [420034, 424398, 419796])
