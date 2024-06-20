@@ -1,4 +1,5 @@
 import csv
+import time
 from math import log, sin, cos, pi, sqrt
 import pprint as pp
 
@@ -29,10 +30,9 @@ def reduce(a):
 	raise ValueError
 
 
-def generate():
+def generate(fn, save=True):
 	studenty = []
-	transf = lambda x: (x, reduce(generator_kos(20, 49, x)[3:]))
-
+	transf = lambda x: (x, reduce(generator_kos(20, 49, fn(x))[3:]))
 	with open("studenty.csv", encoding="utf8") as f:
 		reader = csv.reader(f, delimiter=';')
 		next(reader)
@@ -41,50 +41,107 @@ def generate():
 	x = set(["-".join([str(y) for y in x[1]]) for x in studenty])
 	if len(x) != len(studenty):
 		raise Exception("Got duplicate; please regenerate!")
-
-	with open("lotek.csv", "w", newline='') as f:
-		writer = csv.writer(f, delimiter=';')
-		writer.writerow(["Numer indeksu", "Numery do zaznaczenia"])
-		for student in studenty:
-			writer.writerow(student)
+	if save:
+		with open("lotek.csv", "w", newline='') as f:
+			writer = csv.writer(f, delimiter=';')
+			writer.writerow(["Numer indeksu", "Numery do zaznaczenia"])
+			for student in studenty:
+				writer.writerow(student)
+	return studenty
 
 
 def intersection(listay, listb):
 	return list(set(listay) & set(listb))
 
-# chosen values are the 6 from real life
-def getStudentHitList(filename, chosenValues, checkIds=[]):
+
+def save(array):
+	with open("lotek.csv", "w", newline='') as f:
+		writer = csv.writer(f, delimiter=';')
+		writer.writerow(["SNumer indeksu", "Numery do zaznaczenia"])
+		for student in array:
+			writer.writerow(student)
+
+
+def getStudentHitList(filename, chosenValues, checkIds, std, info={
+	"showPerStudentInfo": True,
+	"showCountStatistics": True,
+	"showMonetaryStatistics": True
+}, load=True):
 	hits = {}
-	studenty = []
-	with open(filename) as f:
-		reader = csv.reader(f, delimiter=';')
-		next(reader)
-		for row in reader:
-			studenty.append(row)
+	studenty = std
+	if load:
+		with open(filename) as f:
+			reader = csv.reader(f, delimiter=';')
+			next(reader)
+			for row in reader:
+				studenty.append(row)
 	counts = [0, 0, 0, 0, 0, 0]
 	returnValue = 0
 	netGain = 0
-	for [indeks, values] in studenty:
-		values = values[1:-1].split(", ")
-		corrects = len(intersection([int(x) for x in values], chosenValues))
-		if corrects > 0:
-			hits[indeks] = corrects
-			counts[corrects - 1] += 1
+	if load:
+		for (indeks, values) in studenty:
+			values = values[1:-1].split(", ")
+			corrects = len(intersection([int(x) for x in values], chosenValues))
+			if corrects > 0:
+				hits[indeks] = corrects
+				counts[corrects - 1] += 1
+	else:
+		for value in studenty:
+			corrects = len(intersection(value[1], chosenValues))
+			if corrects > 0:
+				hits[str(value[0])] = corrects
+				counts[corrects - 1] += 1
 	returnValue = 24 * counts[2] + 170 * counts[3] + 5300 * counts[4] + 2_000_000 * counts[5]
 	netGain = returnValue - len(studenty) * 3
 	hitlist = list(hits.items())
 	hitlist.sort(key=lambda x: x[1], reverse=True)
-	for [i, v] in hitlist:
-		print(f"{i}: {v} trafień")
+	if info["showPerStudentInfo"]:
+		for [i, v] in hitlist:
+			print(f"{i}: {v} trafień")
 	counts.reverse()
-	for id, val in enumerate(counts):
-		if val > 0:
-			print(f"{6-(id+1)} of 6 digits have been marked correctly {val} times")
-	print(f"Approximate winnings: {returnValue}")
-	print(f"Net gain: {netGain}")
+	if info["showCountStatistics"]:
+		for id, val in enumerate(counts):
+			if val > 0:
+				print(f"{6 - id} of 6 digits have been marked correctly {val} times")
+	if info["showMonetaryStatistics"]:
+		print(f"Approximate winnings: {returnValue}")
+		print(f"Net gain: {netGain}")
 	for id in checkIds:
 		if id in [int(x[0]) for x in hitlist]:
 			print(f"{id} has guessed {hits[str(id)]} of 6 numbers correctly")
+	return returnValue
 
-# generate()
-getStudentHitList("lotek.csv", [10, 18, 23, 36, 42, 46], [420034, 424398, 419796])
+
+lam = lambda x: int(x*time.time())
+winnings = 0
+
+LISTA = [21, 37, 42, 39, 17, 7, 2, 3, 5, 9, 1, 10, 22, 45]
+
+std = []
+attemptCounter = 1
+failedGenerations = 0
+highestSoFar = 0
+while winnings < 10_000_000:
+	# print("=" * 20, f"Attempt #{attemptCounter}", "=" * 20)
+	try:
+		std = generate(lam, False)
+	except Exception:
+		failedGenerations += 1
+	winnings = getStudentHitList("lotek.csv", LISTA, [], std, {
+		"showPerStudentInfo": False,
+		"showCountStatistics": False,
+		"showMonetaryStatistics": False
+	}, False)
+	if winnings > highestSoFar:
+		highestSoFar = winnings
+		print("=" * 20, f"Attempt #{attemptCounter}", "=" * 20)
+		print(winnings)
+	time.sleep(0.0001)
+	attemptCounter += 1
+
+save(std)
+winnings = getStudentHitList("lotek.csv", LISTA, [421739, 419718, 421833, 419970], [], {
+	"showPerStudentInfo": True,
+	"showCountStatistics": True,
+	"showMonetaryStatistics": True
+})
